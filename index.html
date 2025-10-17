@@ -1,0 +1,821 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>哈尔滨信息工程学院寝室卡生成器</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <div class="container">
+        <!-- Logo 品牌区域 -->
+        <div class="brand-section">
+            <img src="校logo-CMYK.png" alt="哈尔滨信息工程学院" class="brand-logo">
+            <h1 class="brand-title">哈尔滨信息工程学院</h1>
+            <h2 class="system-title">寝室卡生成器</h2>
+        </div>
+
+        <!-- 导航栏 -->
+        <nav class="navbar">
+            <div class="nav-container">
+                <div class="nav-tabs">
+                    <button class="nav-tab" data-room-type="2">双人寝</button>
+                    <button class="nav-tab" data-room-type="3">三人寝</button>
+                    <button class="nav-tab active" data-room-type="4">四人寝</button>
+                    <button class="nav-tab" data-room-type="5">五人寝</button>
+                </div>
+                <div class="gender-tabs">
+                    <button class="gender-tab active" data-gender="male">男寝</button>
+                    <button class="gender-tab" data-gender="female">女寝</button>
+                </div>
+            </div>
+        </nav>
+
+        <header>
+            <p>上传Excel数据文件和背景图片，自动生成学生信息卡</p>
+        </header>
+
+        <main>
+            <div class="upload-section">
+                <div class="upload-area" id="excelUpload">
+                    <div class="upload-content">
+                        <svg class="upload-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                            <polyline points="14,2 14,8 20,8"></polyline>
+                            <line x1="16" y1="13" x2="8" y2="13"></line>
+                            <line x1="16" y1="17" x2="8" y2="17"></line>
+                            <polyline points="10,9 9,9 8,9"></polyline>
+                        </svg>
+                        <h3>拖拽或点击上传Excel文件</h3>
+                        <p>支持 .xlsx, .xls 格式</p>
+                        <p class="file-info" id="excelInfo"></p>
+                    </div>
+                    <input type="file" id="excelFile" accept=".xlsx,.xls" hidden>
+                </div>
+
+                <div class="upload-area" id="imageUpload">
+                    <div class="upload-content">
+                        <svg class="upload-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                            <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                            <polyline points="21,15 16,10 5,21"></polyline>
+                        </svg>
+                        <h3>拖拽或点击上传背景图片</h3>
+                        <p>支持 .jpg, .jpeg, .png 格式</p>
+                        <p class="file-info" id="imageInfo"></p>
+                    </div>
+                    <input type="file" id="imageFile" accept=".jpg,.jpeg,.png" hidden>
+                </div>
+            </div>
+
+            <div class="info-section">
+                <h3>📋 Excel文件格式要求</h3>
+                <p>Excel文件需要包含以下列（顺序不限）：</p>
+                <ul>
+                    <li><strong>姓名</strong> - 学生姓名</li>
+                    <li><strong>学院</strong> - 所属学院</li>
+                    <li><strong>班级</strong> - 班级信息</li>
+                    <li><strong>辅导员</strong> - 辅导员姓名</li>
+                    <li><strong>寝室号</strong> - 宿舍房间号</li>
+                    <li><strong>床位号</strong> - 床位编号</li>
+                    <li><strong>图片 URL</strong> - 学生照片路径（支持本地路径和网络链接）</li>
+                </ul>
+
+                <h4>📸 图片路径说明</h4>
+                <p><strong>图片URL列</strong>支持以下列名（任选其一）：</p>
+                <ul>
+                    <li><code>图片 URL</code>（推荐）</li>
+                    <li><code>图片URL</code></li>
+                    <li><code>照片URL</code></li>
+                    <li><code>照片 URL</code></li>
+                </ul>
+
+                <p>图片路径支持以下格式：</p>
+                <ul>
+                    <li><strong>网络链接：</strong> https://example.com/photo.jpg</li>
+                    <li><strong>相对路径：</strong> photos/student_1.jpg（相对于Excel文件所在目录）</li>
+                    <li><strong>绝对路径：</strong> /Users/username/Desktop/photos/student_1.jpg</li>
+                </ul>
+
+                <div class="sample-files">
+                    <h4>📁 示例文件</h4>
+                    <p>项目中包含两个示例Excel文件：</p>
+                    <ul>
+                        <li><code>data.xlsx</code> - 使用网络图片链接</li>
+                        <li><code>data_local_photos.xlsx</code> - 使用本地图片路径</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="config-section">
+                <h3>配置选项</h3>
+                <div class="config-grid">
+                    <div class="config-item">
+                        <label for="fontSize">字体大小:</label>
+                        <input type="number" id="fontSize" value="20" min="10" max="50">
+                    </div>
+                    <div class="config-item">
+                        <label for="photoWidth">照片宽度:</label>
+                        <input type="number" id="photoWidth" value="150" min="50" max="300">
+                    </div>
+                    <div class="config-item">
+                        <label for="photoHeight">照片高度:</label>
+                        <input type="number" id="photoHeight" value="150" min="50" max="300">
+                    </div>
+                    <div class="config-item">
+                        <label for="photoX">照片X位置:</label>
+                        <input type="number" id="photoX" value="50" min="0" max="500">
+                    </div>
+                    <div class="config-item">
+                        <label for="photoY">照片Y位置:</label>
+                        <input type="number" id="photoY" value="300" min="0" max="500">
+                    </div>
+                    <div class="config-item">
+                        <label for="textX">文本X位置:</label>
+                        <input type="number" id="textX" value="50" min="0" max="500">
+                    </div>
+                    <div class="config-item">
+                        <label for="textY">文本Y位置:</label>
+                        <input type="number" id="textY" value="50" min="0" max="500">
+                    </div>
+                    <div class="config-item">
+                        <label for="lineSpacing">行间距:</label>
+                        <input type="number" id="lineSpacing" value="25" min="10" max="50">
+                    </div>
+                </div>
+            </div>
+
+            <!-- 位置调整区域容器 -->
+            <div class="position-config-container" id="positionConfigContainer">
+                <!-- 双人寝位置调整 -->
+                <div class="position-config-section room-type-2" id="positionConfigSection2" style="display: none;">
+                    <h3>位置调整 - 双人寝</h3>
+
+                    <!-- 位置1调整 -->
+                    <div class="position-adjustment">
+                        <h4>位置 1 (左侧)</h4>
+                        <div class="position-params-grid">
+                            <div>
+                                <label>照片X坐标:</label>
+                                <input type="number" id="position1PhotoX_2" placeholder="X坐标" value="240">
+                            </div>
+                            <div>
+                                <label>照片Y坐标:</label>
+                                <input type="number" id="position1PhotoY_2" placeholder="Y坐标" value="750">
+                            </div>
+                            <div>
+                                <label>照片宽度:</label>
+                                <input type="number" id="position1PhotoWidth_2" placeholder="宽度" min="50" max="300"
+                                    value="230">
+                            </div>
+                            <div>
+                                <label>照片高度:</label>
+                                <input type="number" id="position1PhotoHeight_2" placeholder="高度" min="50" max="300"
+                                    value="330">
+                            </div>
+                            <div>
+                                <label>文本X坐标:</label>
+                                <input type="number" id="position1TextX_2" placeholder="X坐标" value="700">
+                            </div>
+                            <div>
+                                <label>文本Y坐标:</label>
+                                <input type="number" id="position1TextY_2" placeholder="Y坐标" value="770">
+                            </div>
+                            <div>
+                                <label>字体大小:</label>
+                                <input type="number" id="position1FontSize_2" placeholder="字体大小" min="10" max="50"
+                                    value="25">
+                            </div>
+                            <div>
+                                <label>行间距:</label>
+                                <input type="number" id="position1LineSpacing_2" placeholder="行间距" min="10" max="50"
+                                    value="45">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 位置2调整 -->
+                    <div class="position-adjustment">
+                        <h4>位置 2 (右侧)</h4>
+                        <div class="position-params-grid">
+                            <div>
+                                <label>照片X坐标:</label>
+                                <input type="number" id="position2PhotoX_2" placeholder="X坐标" value="1310">
+                            </div>
+                            <div>
+                                <label>照片Y坐标:</label>
+                                <input type="number" id="position2PhotoY_2" placeholder="Y坐标" value="-125">
+                            </div>
+                            <div>
+                                <label>照片宽度:</label>
+                                <input type="number" id="position2PhotoWidth_2" placeholder="宽度" min="50" max="300"
+                                    value="250">
+                            </div>
+                            <div>
+                                <label>照片高度:</label>
+                                <input type="number" id="position2PhotoHeight_2" placeholder="高度" min="50" max="300"
+                                    value="330">
+                            </div>
+                            <div>
+                                <label>文本X坐标:</label>
+                                <input type="number" id="position2TextX_2" placeholder="X坐标" value="1780">
+                            </div>
+                            <div>
+                                <label>文本Y坐标:</label>
+                                <input type="number" id="position2TextY_2" placeholder="Y坐标" value="-115">
+                            </div>
+                            <div>
+                                <label>字体大小:</label>
+                                <input type="number" id="position2FontSize_2" placeholder="字体大小" min="10" max="50"
+                                    value="25">
+                            </div>
+                            <div>
+                                <label>行间距:</label>
+                                <input type="number" id="position2LineSpacing_2" placeholder="行间距" min="10" max="50"
+                                    value="45">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 20px;">
+                        <button id="applyAllBtn_2">应用所有调整</button>
+                        <button id="resetAllBtn_2">重置所有调整</button>
+                    </div>
+                </div>
+
+                <!-- 三人寝位置调整 -->
+                <div class="position-config-section room-type-3" id="positionConfigSection3" style="display: none;">
+                    <h3>位置调整 - 三人寝</h3>
+
+                    <!-- 位置1调整 -->
+                    <div class="position-adjustment">
+                        <h4>位置 1 (左侧)</h4>
+                        <div class="position-params-grid">
+                            <div>
+                                <label>照片X坐标:</label>
+                                <input type="number" id="position1PhotoX_3" placeholder="X坐标">
+                            </div>
+                            <div>
+                                <label>照片Y坐标:</label>
+                                <input type="number" id="position1PhotoY_3" placeholder="Y坐标">
+                            </div>
+                            <div>
+                                <label>照片宽度:</label>
+                                <input type="number" id="position1PhotoWidth_3" placeholder="宽度" min="50" max="300">
+                            </div>
+                            <div>
+                                <label>照片高度:</label>
+                                <input type="number" id="position1PhotoHeight_3" placeholder="高度" min="50" max="300">
+                            </div>
+                            <div>
+                                <label>文本X坐标:</label>
+                                <input type="number" id="position1TextX_3" placeholder="X坐标">
+                            </div>
+                            <div>
+                                <label>文本Y坐标:</label>
+                                <input type="number" id="position1TextY_3" placeholder="Y坐标">
+                            </div>
+                            <div>
+                                <label>字体大小:</label>
+                                <input type="number" id="position1FontSize_3" placeholder="字体大小" min="10" max="50">
+                            </div>
+                            <div>
+                                <label>行间距:</label>
+                                <input type="number" id="position1LineSpacing_3" placeholder="行间距" min="10" max="50">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 位置2调整 -->
+                    <div class="position-adjustment">
+                        <h4>位置 2 (中间)</h4>
+                        <div class="position-params-grid">
+                            <div>
+                                <label>照片X坐标:</label>
+                                <input type="number" id="position2PhotoX_3" placeholder="X坐标">
+                            </div>
+                            <div>
+                                <label>照片Y坐标:</label>
+                                <input type="number" id="position2PhotoY_3" placeholder="Y坐标">
+                            </div>
+                            <div>
+                                <label>照片宽度:</label>
+                                <input type="number" id="position2PhotoWidth_3" placeholder="宽度" min="50" max="300">
+                            </div>
+                            <div>
+                                <label>照片高度:</label>
+                                <input type="number" id="position2PhotoHeight_3" placeholder="高度" min="50" max="300">
+                            </div>
+                            <div>
+                                <label>文本X坐标:</label>
+                                <input type="number" id="position2TextX_3" placeholder="X坐标">
+                            </div>
+                            <div>
+                                <label>文本Y坐标:</label>
+                                <input type="number" id="position2TextY_3" placeholder="Y坐标">
+                            </div>
+                            <div>
+                                <label>字体大小:</label>
+                                <input type="number" id="position2FontSize_3" placeholder="字体大小" min="10" max="50">
+                            </div>
+                            <div>
+                                <label>行间距:</label>
+                                <input type="number" id="position2LineSpacing_3" placeholder="行间距" min="10" max="50">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 位置3调整 -->
+                    <div class="position-adjustment">
+                        <h4>位置 3 (右侧)</h4>
+                        <div class="position-params-grid">
+                            <div>
+                                <label>照片X坐标:</label>
+                                <input type="number" id="position3PhotoX_3" placeholder="X坐标">
+                            </div>
+                            <div>
+                                <label>照片Y坐标:</label>
+                                <input type="number" id="position3PhotoY_3" placeholder="Y坐标">
+                            </div>
+                            <div>
+                                <label>照片宽度:</label>
+                                <input type="number" id="position3PhotoWidth_3" placeholder="宽度" min="50" max="300">
+                            </div>
+                            <div>
+                                <label>照片高度:</label>
+                                <input type="number" id="position3PhotoHeight_3" placeholder="高度" min="50" max="300">
+                            </div>
+                            <div>
+                                <label>文本X坐标:</label>
+                                <input type="number" id="position3TextX_3" placeholder="X坐标">
+                            </div>
+                            <div>
+                                <label>文本Y坐标:</label>
+                                <input type="number" id="position3TextY_3" placeholder="Y坐标">
+                            </div>
+                            <div>
+                                <label>字体大小:</label>
+                                <input type="number" id="position3FontSize_3" placeholder="字体大小" min="10" max="50">
+                            </div>
+                            <div>
+                                <label>行间距:</label>
+                                <input type="number" id="position3LineSpacing_3" placeholder="行间距" min="10" max="50">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 20px;">
+                        <button id="applyAllBtn_3">应用所有调整</button>
+                        <button id="resetAllBtn_3">重置所有调整</button>
+                    </div>
+                </div>
+
+                <!-- 四人寝位置调整 -->
+                <div class="position-config-section room-type-4" id="positionConfigSection4">
+                    <h3>位置调整 - 四人寝</h3>
+
+                    <!-- 位置1调整 -->
+                    <div class="position-adjustment">
+                        <h4>位置 1 (左上角)</h4>
+                        <div class="position-params-grid">
+                            <div>
+                                <label>照片X坐标:</label>
+                                <input type="number" id="position1PhotoX_4" placeholder="X坐标" value="185">
+                            </div>
+                            <div>
+                                <label>照片Y坐标:</label>
+                                <input type="number" id="position1PhotoY_4" placeholder="Y坐标" value="500">
+                            </div>
+                            <div>
+                                <label>照片宽度:</label>
+                                <input type="number" id="position1PhotoWidth_4" placeholder="宽度" min="50" max="500"
+                                    value="230">
+                            </div>
+                            <div>
+                                <label>照片高度:</label>
+                                <input type="number" id="position1PhotoHeight_4" placeholder="高度" min="50" max="500"
+                                    value="330">
+                            </div>
+                            <div>
+                                <label>文本X坐标:</label>
+                                <input type="number" id="position1TextX_4" placeholder="X坐标" value="650">
+                            </div>
+                            <div>
+                                <label>文本Y坐标:</label>
+                                <input type="number" id="position1TextY_4" placeholder="Y坐标" value="522">
+                            </div>
+                            <div>
+                                <label>字体大小:</label>
+                                <input type="number" id="position1FontSize_4" placeholder="字体大小" min="10" max="50"
+                                    value="25">
+                            </div>
+                            <div>
+                                <label>行间距:</label>
+                                <input type="number" id="position1LineSpacing_4" placeholder="行间距" min="10" max="50"
+                                    value="45">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 位置2调整 -->
+                    <div class="position-adjustment">
+                        <h4>位置 2 (右上角)</h4>
+                        <div class="position-params-grid">
+                            <div>
+                                <label>照片X坐标:</label>
+                                <input type="number" id="position2PhotoX_4" placeholder="X坐标" value="40">
+                            </div>
+                            <div>
+                                <label>照片Y坐标:</label>
+                                <input type="number" id="position2PhotoY_4" placeholder="Y坐标" value="500">
+                            </div>
+                            <div>
+                                <label>照片宽度:</label>
+                                <input type="number" id="position2PhotoWidth_4" placeholder="宽度" min="50" max="500"
+                                    value="230">
+                            </div>
+                            <div>
+                                <label>照片高度:</label>
+                                <input type="number" id="position2PhotoHeight_4" placeholder="高度" min="50" max="500"
+                                    value="330">
+                            </div>
+                            <div>
+                                <label>文本X坐标:</label>
+                                <input type="number" id="position2TextX_4" placeholder="X坐标" value="480">
+                            </div>
+                            <div>
+                                <label>文本Y坐标:</label>
+                                <input type="number" id="position2TextY_4" placeholder="Y坐标" value="522">
+                            </div>
+                            <div>
+                                <label>字体大小:</label>
+                                <input type="number" id="position2FontSize_4" placeholder="字体大小" min="10" max="50"
+                                    value="25">
+                            </div>
+                            <div>
+                                <label>行间距:</label>
+                                <input type="number" id="position2LineSpacing_4" placeholder="行间距" min="10" max="50"
+                                    value="45">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 位置3调整 -->
+                    <div class="position-adjustment">
+                        <h4>位置 3 (左下角)</h4>
+                        <div class="position-params-grid">
+                            <div>
+                                <label>照片X坐标:</label>
+                                <input type="number" id="position3PhotoX_4" placeholder="X坐标" value="185">
+                            </div>
+                            <div>
+                                <label>照片Y坐标:</label>
+                                <input type="number" id="position3PhotoY_4" placeholder="Y坐标" value="140">
+                            </div>
+                            <div>
+                                <label>照片宽度:</label>
+                                <input type="number" id="position3PhotoWidth_4" placeholder="宽度" min="50" max="500"
+                                    value="230">
+                            </div>
+                            <div>
+                                <label>照片高度:</label>
+                                <input type="number" id="position3PhotoHeight_4" placeholder="高度" min="50" max="500"
+                                    value="330">
+                            </div>
+                            <div>
+                                <label>文本X坐标:</label>
+                                <input type="number" id="position3TextX_4" placeholder="X坐标" value="650">
+                            </div>
+                            <div>
+                                <label>文本Y坐标:</label>
+                                <input type="number" id="position3TextY_4" placeholder="Y坐标" value="140">
+                            </div>
+                            <div>
+                                <label>字体大小:</label>
+                                <input type="number" id="position3FontSize_4" placeholder="字体大小" min="10" max="50"
+                                    value="25">
+                            </div>
+                            <div>
+                                <label>行间距:</label>
+                                <input type="number" id="position3LineSpacing_4" placeholder="行间距" min="10" max="50"
+                                    value="45">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 位置4调整 -->
+                    <div class="position-adjustment">
+                        <h4>位置 4 (右下角)</h4>
+                        <div class="position-params-grid">
+                            <div>
+                                <label>照片X坐标:</label>
+                                <input type="number" id="position4PhotoX_4" placeholder="X坐标" value="40">
+                            </div>
+                            <div>
+                                <label>照片Y坐标:</label>
+                                <input type="number" id="position4PhotoY_4" placeholder="Y坐标" value="140">
+                            </div>
+                            <div>
+                                <label>照片宽度:</label>
+                                <input type="number" id="position4PhotoWidth_4" placeholder="宽度" min="50" max="500"
+                                    value="230">
+                            </div>
+                            <div>
+                                <label>照片高度:</label>
+                                <input type="number" id="position4PhotoHeight_4" placeholder="高度" min="50" max="500"
+                                    value="330">
+                            </div>
+                            <div>
+                                <label>文本X坐标:</label>
+                                <input type="number" id="position4TextX_4" placeholder="X坐标" value="480">
+                            </div>
+                            <div>
+                                <label>文本Y坐标:</label>
+                                <input type="number" id="position4TextY_4" placeholder="Y坐标" value="140">
+                            </div>
+                            <div>
+                                <label>字体大小:</label>
+                                <input type="number" id="position4FontSize_4" placeholder="字体大小" min="10" max="50"
+                                    value="25">
+                            </div>
+                            <div>
+                                <label>行间距:</label>
+                                <input type="number" id="position4LineSpacing_4" placeholder="行间距" min="10" max="50"
+                                    value="45">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 20px;">
+                        <button id="applyAllBtn_4">应用所有调整</button>
+                        <button id="resetAllBtn_4">重置所有调整</button>
+                    </div>
+                </div>
+
+                <!-- 五人寝位置调整 -->
+                <div class="position-config-section room-type-5" id="positionConfigSection5" style="display: none;">
+                    <h3>位置调整 - 五人寝</h3>
+
+                    <!-- 位置1调整 -->
+                    <div class="position-adjustment">
+                        <h4>位置 1 (左上角)</h4>
+                        <div class="position-params-grid">
+                            <div>
+                                <label>照片X坐标:</label>
+                                <input type="number" id="position1PhotoX_5" placeholder="X坐标" value="-125">
+                            </div>
+                            <div>
+                                <label>照片Y坐标:</label>
+                                <input type="number" id="position1PhotoY_5" placeholder="Y坐标" value="480">
+                            </div>
+                            <div>
+                                <label>照片宽度:</label>
+                                <input type="number" id="position1PhotoWidth_5" placeholder="宽度" min="50" max="500"
+                                    value="230">
+                            </div>
+                            <div>
+                                <label>照片高度:</label>
+                                <input type="number" id="position1PhotoHeight_5" placeholder="高度" min="50" max="500"
+                                    value="330">
+                            </div>
+                            <div>
+                                <label>文本X坐标:</label>
+                                <input type="number" id="position1TextX_5" placeholder="X坐标" value="380">
+                            </div>
+                            <div>
+                                <label>文本Y坐标:</label>
+                                <input type="number" id="position1TextY_5" placeholder="Y坐标" value="490">
+                            </div>
+                            <div>
+                                <label>字体大小:</label>
+                                <input type="number" id="position1FontSize_5" placeholder="字体大小" min="10" max="50"
+                                    value="25">
+                            </div>
+                            <div>
+                                <label>行间距:</label>
+                                <input type="number" id="position1LineSpacing_5" placeholder="行间距" min="10" max="50"
+                                    value="45">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 位置2调整 -->
+                    <div class="position-adjustment">
+                        <h4>位置 2 (右上角)</h4>
+                        <div class="position-params-grid">
+                            <div>
+                                <label>照片X坐标:</label>
+                                <input type="number" id="position2PhotoX_5" placeholder="X坐标" value="-550">
+                            </div>
+                            <div>
+                                <label>照片Y坐标:</label>
+                                <input type="number" id="position2PhotoY_5" placeholder="Y坐标" value="480">
+                            </div>
+                            <div>
+                                <label>照片宽度:</label>
+                                <input type="number" id="position2PhotoWidth_5" placeholder="宽度" min="50" max="300"
+                                    value="230">
+                            </div>
+                            <div>
+                                <label>照片高度:</label>
+                                <input type="number" id="position2PhotoHeight_5" placeholder="高度" min="50" max="300"
+                                    value="330">
+                            </div>
+                            <div>
+                                <label>文本X坐标:</label>
+                                <input type="number" id="position2TextX_5" placeholder="X坐标" value="-50">
+                            </div>
+                            <div>
+                                <label>文本Y坐标:</label>
+                                <input type="number" id="position2TextY_5" placeholder="Y坐标" value="490">
+                            </div>
+                            <div>
+                                <label>字体大小:</label>
+                                <input type="number" id="position2FontSize_5" placeholder="字体大小" min="10" max="50"
+                                    value="25">
+                            </div>
+                            <div>
+                                <label>行间距:</label>
+                                <input type="number" id="position2LineSpacing_5" placeholder="行间距" min="10" max="50"
+                                    value="45">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 位置3调整 -->
+                    <div class="position-adjustment">
+                        <h4>位置 3 (左下角)</h4>
+                        <div class="position-params-grid">
+                            <div>
+                                <label>照片X坐标:</label>
+                                <input type="number" id="position3PhotoX_5" placeholder="X坐标" value="-310">
+                            </div>
+                            <div>
+                                <label>照片Y坐标:</label>
+                                <input type="number" id="position3PhotoY_5" placeholder="Y坐标" value="140">
+                            </div>
+                            <div>
+                                <label>照片宽度:</label>
+                                <input type="number" id="position3PhotoWidth_5" placeholder="宽度" min="50" max="300"
+                                    value="230">
+                            </div>
+                            <div>
+                                <label>照片高度:</label>
+                                <input type="number" id="position3PhotoHeight_5" placeholder="高度" min="50" max="300"
+                                    value="330">
+                            </div>
+                            <div>
+                                <label>文本X坐标:</label>
+                                <input type="number" id="position3TextX_5" placeholder="X坐标" value="190">
+                            </div>
+                            <div>
+                                <label>文本Y坐标:</label>
+                                <input type="number" id="position3TextY_5" placeholder="Y坐标" value="140">
+                            </div>
+                            <div>
+                                <label>字体大小:</label>
+                                <input type="number" id="position3FontSize_5" placeholder="字体大小" min="10" max="50"
+                                    value="25">
+                            </div>
+                            <div>
+                                <label>行间距:</label>
+                                <input type="number" id="position3LineSpacing_5" placeholder="行间距" min="10" max="50"
+                                    value="45">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 位置4调整 -->
+                    <div class="position-adjustment">
+                        <h4>位置 4 (右下角)</h4>
+                        <div class="position-params-grid">
+                            <div>
+                                <label>照片X坐标:</label>
+                                <input type="number" id="position4PhotoX_5" placeholder="X坐标" value="-330">
+                            </div>
+                            <div>
+                                <label>照片Y坐标:</label>
+                                <input type="number" id="position4PhotoY_5" placeholder="Y坐标" value="140">
+                            </div>
+                            <div>
+                                <label>照片宽度:</label>
+                                <input type="number" id="position4PhotoWidth_5" placeholder="宽度" min="50" max="300"
+                                    value="230">
+                            </div>
+                            <div>
+                                <label>照片高度:</label>
+                                <input type="number" id="position4PhotoHeight_5" placeholder="高度" min="50" max="300"
+                                    value="330">
+                            </div>
+                            <div>
+                                <label>文本X坐标:</label>
+                                <input type="number" id="position4TextX_5" placeholder="X坐标" value="180">
+                            </div>
+                            <div>
+                                <label>文本Y坐标:</label>
+                                <input type="number" id="position4TextY_5" placeholder="Y坐标" value="140">
+                            </div>
+                            <div>
+                                <label>字体大小:</label>
+                                <input type="number" id="position4FontSize_5" placeholder="字体大小" min="10" max="50"
+                                    value="25">
+                            </div>
+                            <div>
+                                <label>行间距:</label>
+                                <input type="number" id="position4LineSpacing_5" placeholder="行间距" min="10" max="50"
+                                    value="45">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 位置5调整 -->
+                    <div class="position-adjustment">
+                        <h4>位置 5 (中间)</h4>
+                        <div class="position-params-grid">
+                            <div>
+                                <label>照片X坐标:</label>
+                                <input type="number" id="position5PhotoX_5" placeholder="X坐标" value="-350">
+                            </div>
+                            <div>
+                                <label>照片Y坐标:</label>
+                                <input type="number" id="position5PhotoY_5" placeholder="Y坐标" value="140">
+                            </div>
+                            <div>
+                                <label>照片宽度:</label>
+                                <input type="number" id="position5PhotoWidth_5" placeholder="宽度" min="50" max="300"
+                                    value="230">
+                            </div>
+                            <div>
+                                <label>照片高度:</label>
+                                <input type="number" id="position5PhotoHeight_5" placeholder="高度" min="50" max="300"
+                                    value="330">
+                            </div>
+                            <div>
+                                <label>文本X坐标:</label>
+                                <input type="number" id="position5TextX_5" placeholder="X坐标" value="150">
+                            </div>
+                            <div>
+                                <label>文本Y坐标:</label>
+                                <input type="number" id="position5TextY_5" placeholder="Y坐标" value="140">
+                            </div>
+                            <div>
+                                <label>字体大小:</label>
+                                <input type="number" id="position5FontSize_5" placeholder="字体大小" min="10" max="50"
+                                    value="25">
+                            </div>
+                            <div>
+                                <label>行间距:</label>
+                                <input type="number" id="position5LineSpacing_5" placeholder="行间距" min="10" max="50"
+                                    value="45">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 20px;">
+                        <button id="applyAllBtn_5">应用所有调整</button>
+                        <button id="resetAllBtn_5">重置所有调整</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="action-section">
+                <button id="generateBtn" class="generate-btn" disabled>
+                    <span class="btn-text">生成信息卡</span>
+                    <div class="loading-spinner" style="display: none;"></div>
+                </button>
+            </div>
+
+            <div class="result-section" id="resultSection" style="display: none;">
+                <h3>生成结果</h3>
+                <div class="result-info" id="resultInfo"></div>
+                <div class="pagination-controls" id="paginationControls" style="display: none;">
+                    <button id="prevBtn" class="nav-btn" disabled>← 上一页</button>
+                    <div class="page-selector">
+                        <span>第</span>
+                        <select id="pageSelect" class="page-select"></select>
+                        <span>页，共 <span id="totalPages">1</span> 页</span>
+                    </div>
+                    <button id="nextBtn" class="nav-btn" disabled>下一页 →</button>
+                </div>
+                <div class="result-display" id="resultDisplay">
+                    <div class="current-card" id="currentCard"></div>
+                </div>
+                <div class="download-buttons">
+                    <button id="downloadBtn" class="download-btn">下载所有图片</button>
+                    <button id="downloadZipBtn" class="download-btn"
+                        style="background: linear-gradient(135deg, #28a745, #20c997);">打包下载ZIP</button>
+                </div>
+            </div>
+        </main>
+
+        <footer>
+            <p>&copy; 2025 哈尔滨信息工程学院寝室卡生成器</p>
+        </footer>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+
+</html>
