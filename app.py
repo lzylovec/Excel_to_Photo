@@ -377,9 +377,19 @@ def process_images(excel_path, background_path, session_folder, session_id, room
                 if photo_url and photo_url.strip():
                     try:
                         if photo_url.startswith(('http://', 'https://')):
-                            # 网络图片 - 跳过处理
-                            print(f"⚠️  网络图片URL无法访问，跳过: {photo_url}")
-                            print(f"   建议：请将图片下载到本地 photos/ 目录，或检查URL是否正确")
+                            # 网络图片 - 下载并处理
+                            print(f"🌐 正在下载网络图片: {photo_url}")
+                            response = requests.get(photo_url, timeout=10)
+                            response.raise_for_status()  # 检查HTTP错误
+                            photo = Image.open(BytesIO(response.content)).convert("RGBA")
+                            print(f"✅ 成功下载网络图片: {photo_url}")
+                            
+                            # 调整照片大小 - 使用调整后的尺寸
+                            photo = photo.resize((adjusted_photo_width, adjusted_photo_height), Image.Resampling.LANCZOS)
+                            
+                            # 粘贴照片 - 使用调整后的位置
+                            photo_x_pos, photo_y_pos = adjusted_photo_pos
+                            img.paste(photo, (photo_x_pos, photo_y_pos), photo if photo.mode == "RGBA" else None)
                         else:
                             # 本地文件路径
                             photo_path = photo_url
