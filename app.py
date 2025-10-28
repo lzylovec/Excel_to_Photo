@@ -9,6 +9,7 @@ import uuid
 import traceback
 from datetime import datetime
 import zipfile
+import re
 
 app = Flask(__name__)
 
@@ -17,6 +18,7 @@ UPLOAD_FOLDER = 'uploads'
 OUTPUT_FOLDER = 'static/output'
 ALLOWED_EXCEL_EXTENSIONS = {'xlsx', 'xls'}
 ALLOWED_IMAGE_EXTENSIONS = {'png', 'jpg', 'jpeg'}
+TEMPLATE_PHOTO_DIR = '/Users/liuzhenyu_macbookpro/Desktop/商学院/model_photo'
 
 # 创建必要的目录
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
@@ -31,6 +33,28 @@ def allowed_file(filename, allowed_extensions):
     return '.' in filename and \
            filename.rsplit('.', 1)[1].lower() in allowed_extensions
 
+def get_template_filename(gender, room_type):
+    """根据性别与寝室类型返回模板图片文件名"""
+    gender_cn = '男' if gender == 'male' else '女'
+    room_map = {2: '双人寝', 3: '三人寝', 4: '四人寝', 5: '五人寝'}
+    room_text = room_map.get(room_type, '四人寝')
+    return f"寝室卡-{gender_cn}-{room_text}.jpg"
+
+@app.route('/template-image', methods=['GET'])
+def serve_template_image():
+    """根据前端选择返回对应的模板图片，用于预览/自动选择"""
+    try:
+        gender = request.args.get('gender', 'male')
+        room_type = int(request.args.get('room_type', 4))
+        filename = get_template_filename(gender, room_type)
+        file_path = os.path.join(TEMPLATE_PHOTO_DIR, filename)
+        if not os.path.exists(file_path):
+            return jsonify({'error': f'模板图片不存在: {filename}'}), 404
+        # 直接返回图片用于前端显示
+        return send_file(file_path, mimetype='image/jpeg')
+    except Exception as e:
+        return jsonify({'error': f'模板图片加载失败: {str(e)}'}), 500
+
 @app.route('/')
 def index():
     return send_from_directory('.', 'index.html')
@@ -39,50 +63,74 @@ def index():
 def serve_static(filename):
     return send_from_directory('.', filename)
 
+@app.route('/download-template', methods=['GET'])
+def download_template():
+    template_path = os.path.join(os.getcwd(), '模板表.xlsx')
+    if not os.path.exists(template_path):
+        return jsonify({'error': '模板文件不存在'}), 404
+    try:
+        return send_from_directory(os.getcwd(), '模板表.xlsx', as_attachment=True, download_name='模板表.xlsx')
+    except Exception as e:
+        return jsonify({'error': f'下载失败: {str(e)}'}), 500
+
 @app.route('/generate', methods=['POST'])
 def generate_cards():
     try:
-        # 检查是否有文件上传
-        if 'excel_file' not in request.files or 'image_file' not in request.files:
-            return jsonify({'error': '请上传Excel文件和背景图片'}), 400
-        
+        # Excel 必须，背景图可选（未上传则按选择自动套用模板）
+        if 'excel_file' not in request.files:
+            return jsonify({'error': '请上传Excel文件'}), 400
         excel_file = request.files['excel_file']
-        background_file = request.files['image_file']
-        
-        # 检查文件是否为空
-        if excel_file.filename == '' or background_file.filename == '':
-            return jsonify({'error': '请选择有效的文件'}), 400
-        
-        # 检查文件类型
-        if not (allowed_file(excel_file.filename, ALLOWED_EXCEL_EXTENSIONS) and 
-                allowed_file(background_file.filename, ALLOWED_IMAGE_EXTENSIONS)):
-            return jsonify({'error': '文件类型不支持'}), 400
+        background_file = request.files.get('image_file')
+        if excel_file.filename == '':
+            return jsonify({'error': '请选择有效的Excel文件'}), 400
+        if not allowed_file(excel_file.filename, ALLOWED_EXCEL_EXTENSIONS):
+            return jsonify({'error': 'Excel文件类型不支持'}), 400
         
         # 获取寝室类型参数
         room_type = int(request.form.get('room_type', 4))
         if room_type not in [2, 3, 4, 5]:
             return jsonify({'error': '不支持的寝室类型'}), 400
+        # 获取性别与是否使用模板
+        gender = request.form.get('gender', 'male')
+        use_template = request.form.get('use_template', '').lower() == 'true'
         
         # 获取位置调整参数
         position_adjustments = {}
         if 'position_adjustments' in request.form:
             import json
             position_adjustments = json.loads(request.form.get('position_adjustments', '{}'))
+
+        # 获取用户提供的图片目录（可选）
+        photo_dir = request.form.get('photo_dir', '').strip() or None
         
         # 生成唯一的会话ID
         session_id = str(uuid.uuid4())
         session_folder = os.path.join(app.config['OUTPUT_FOLDER'], session_id)
         os.makedirs(session_folder, exist_ok=True)
         
-        # 保存上传的文件
+        # 保存Excel文件
         excel_filename = secure_filename(excel_file.filename)
-        background_filename = secure_filename(background_file.filename)
-        
         excel_path = os.path.join(app.config['UPLOAD_FOLDER'], f"{session_id}_{excel_filename}")
-        background_path = os.path.join(app.config['UPLOAD_FOLDER'], f"{session_id}_{background_filename}")
-        
         excel_file.save(excel_path)
-        background_file.save(background_path)
+
+        # 确定背景图路径：优先使用上传的文件，否则按模板选择
+        background_path = None
+        temp_background_saved = False
+        if background_file and background_file.filename:
+            if not allowed_file(background_file.filename, ALLOWED_IMAGE_EXTENSIONS):
+                # 背景上传但类型不支持
+                os.remove(excel_path)
+                return jsonify({'error': '背景图片类型不支持'}), 400
+            background_filename = secure_filename(background_file.filename)
+            background_path = os.path.join(app.config['UPLOAD_FOLDER'], f"{session_id}_{background_filename}")
+            background_file.save(background_path)
+            temp_background_saved = True
+        else:
+            template_filename = get_template_filename(gender, room_type)
+            background_path = os.path.join(TEMPLATE_PHOTO_DIR, template_filename)
+            if not os.path.exists(background_path):
+                os.remove(excel_path)
+                return jsonify({'error': f'未上传背景图片且模板不存在: {template_filename}'}), 400
         
         # 处理图片生成
         result = process_images(
@@ -91,12 +139,14 @@ def generate_cards():
             session_folder, 
             session_id,
             room_type,
-            position_adjustments
+            position_adjustments,
+            photo_dir=photo_dir
         )
         
-        # 清理临时文件
+        # 清理临时文件（仅删除上传的临时背景图；模板不删除）
         os.remove(excel_path)
-        os.remove(background_path)
+        if temp_background_saved and os.path.exists(background_path):
+            os.remove(background_path)
         
         return jsonify(result)
         
@@ -157,7 +207,135 @@ def get_room_layout_positions(room_type, bg_width, bg_height, default_text_x=200
     return positions
 
 
-def process_images(excel_path, background_path, session_folder, session_id, room_type, position_adjustments=None):
+def find_photo_in_dir(photo_dir, dorm, bed, name):
+    """
+    在指定目录中根据寝室号/床位号/姓名尝试匹配照片文件。
+    支持目录结构: <photo_dir>/<楼号>/<寝室号> 或 <photo_dir>/<寝室号>。
+    支持文件名包含模式: 寝室号-床位号-姓名、寝室号_床位号_姓名、姓名-寝室号-床位号 等。
+    返回匹配到的绝对路径，否则返回 None。
+    """
+    try:
+        if not photo_dir:
+            return None
+        base_dir = os.path.abspath(photo_dir)
+        if not os.path.isdir(base_dir):
+            print(f"⚠️ 图片目录不存在: {base_dir}")
+            return None
+
+        def norm(s):
+            if s is None:
+                return ""
+            s = str(s)
+            s = s.strip().lower()
+            s = s.replace("（", "(").replace("）", ")")
+            # 统一连接符和去除一些常见分隔符
+            for ch in ["－", "—", "–"]:
+                s = s.replace(ch, "-")
+            s = s.replace("_", "")
+            s = s.replace(" ", "")
+            return s
+
+        dorm_s = norm(dorm)
+        bed_s = norm(bed)
+        name_s = norm(name)
+
+        # 提取宿舍的数字信息（可能包含楼号/寝室号）
+        dorm_nums = re.findall(r"\d+", dorm_s)
+        building = None
+        room = None
+
+        # 支持 '1/218'、'1-218' 等写法
+        if "/" in str(dorm) or "／" in str(dorm):
+            parts = re.split(r"[／/]+", str(dorm))
+            if len(parts) >= 2:
+                building = parts[0].strip()
+                room = parts[1].strip()
+        elif any(sym in str(dorm) for sym in ["-", "－", "—"]):
+            parts = re.split(r"[-－—]+", str(dorm))
+            if len(parts) >= 2:
+                building = parts[0].strip()
+                room = parts[1].strip()
+        elif len(dorm_nums) >= 2:
+            building = dorm_nums[0]
+            room = dorm_nums[1]
+        elif len(dorm_nums) == 1:
+            room = dorm_nums[0]
+
+        # 候选目录列表：优先更具体的路径
+        candidate_dirs = []
+        if building and room:
+            candidate_dirs.append(os.path.join(base_dir, str(building), str(room)))
+            candidate_dirs.append(os.path.join(base_dir, f"{building}_{room}"))
+            candidate_dirs.append(os.path.join(base_dir, f"{building}-{room}"))
+            candidate_dirs.append(os.path.join(base_dir, f"{building}{room}"))
+        if room:
+            candidate_dirs.append(os.path.join(base_dir, str(room)))
+        # 最后退回到根目录
+        candidate_dirs.append(base_dir)
+
+        # 构造床位匹配关键词
+        bed_keywords = []
+        if bed_s:
+            bed_digits = re.findall(r"\d+", bed_s)
+            if bed_digits:
+                b = bed_digits[0]
+                bed_keywords = [
+                    b,
+                    f"{b}号", f"{b}床", f"{b}号位",
+                    f"床位{b}", f"{b}位", f"第{b}床", f"第{b}位"
+                ]
+
+        def filename_ok(fn):
+            # fn 已经是归一化后的不含路径的文件名
+            name_ok = True
+            if name_s and name_s != '未填写':
+                name_ok = name_s in fn
+            room_ok = True
+            if room:
+                room_ok = str(room) in fn
+            bed_ok = True
+            if bed_keywords:
+                bed_ok = any(k in fn for k in bed_keywords)
+            # 若提供姓名：姓名必须命中，同时房间或床位至少一个命中
+            # 若不提供姓名：房间和床位都要命中，降低误匹配风险
+            if name_s and name_s != '未填写':
+                return name_ok and (room_ok or bed_ok)
+            else:
+                return room_ok and bed_ok
+
+        valid_exts = {'.jpg', '.jpeg', '.png', '.JPG', '.JPEG', '.PNG'}
+
+        # 先在候选目录的文件中找，再递归它们的子目录
+        for d in candidate_dirs:
+            try:
+                if not os.path.isdir(d):
+                    continue
+                # 优先检查当前目录文件
+                for fn in os.listdir(d):
+                    full = os.path.join(d, fn)
+                    if os.path.isfile(full):
+                        ext = os.path.splitext(fn)[1]
+                        if ext in valid_exts:
+                            if filename_ok(norm(os.path.splitext(fn)[0])):
+                                return full
+                # 再递归检查子目录
+                for root, _, files in os.walk(d):
+                    for fn in files:
+                        ext = os.path.splitext(fn)[1]
+                        if ext in valid_exts:
+                            if filename_ok(norm(os.path.splitext(fn)[0])):
+                                return os.path.join(root, fn)
+            except Exception as e:
+                print(f"扫描目录时出错 {d}: {e}")
+                continue
+
+        return None
+    except Exception as e:
+        print(f"find_photo_in_dir 执行异常: {e}")
+        return None
+
+
+def process_images(excel_path, background_path, session_folder, session_id, room_type, position_adjustments=None, photo_dir=None):
     """
     处理图片生成
     
@@ -192,8 +370,9 @@ def process_images(excel_path, background_path, session_folder, session_id, room
                 photo_column = col
                 break
         
+        # 图片URL列缺失不再阻塞：允许通过用户自定义图片目录匹配
         if photo_column is None:
-            missing_columns.append('图片URL列（支持：图片 URL、图片URL、照片URL、照片 URL）')
+            print('ℹ️ 未检测到图片URL列，将尝试使用用户提供的图片目录进行匹配（如有）')
         
         if missing_columns:
             return {'success': False, 'error': f'Excel文件缺少必要的列: {", ".join(missing_columns)}'}
@@ -234,6 +413,7 @@ def process_images(excel_path, background_path, session_folder, session_id, room
         
         generated_images = []
         student_info = []  # 存储学生信息用于前端选择器
+        unmatched_people = []  # 收集未匹配到照片的人员
         
         # 初始化位置调整
         if position_adjustments is None:
@@ -279,7 +459,9 @@ def process_images(excel_path, background_path, session_folder, session_id, room
                 counselor = str(row['辅导员']) if pd.notna(row['辅导员']) else '未填写'
                 dorm = str(row['寝室号']) if pd.notna(row['寝室号']) else '未填写'
                 bed = str(row['床位号']) if pd.notna(row['床位号']) else '未填写'
-                photo_url = str(row[photo_column]) if pd.notna(row[photo_column]) else ''
+                photo_url = ''
+                if photo_column is not None and photo_column in row.index:
+                    photo_url = str(row[photo_column]) if pd.notna(row[photo_column]) else ''
                 
                 # 添加学生信息到列表
                 student_key = f"card_{card_idx}_student_{student_idx}"
@@ -409,11 +591,38 @@ def process_images(excel_path, background_path, session_folder, session_id, room
                                 img.paste(photo, (photo_x_pos, photo_y_pos), photo if photo.mode == "RGBA" else None)
                             else:
                                 print(f"❌ 本地图片文件不存在: {photo_path}")
+                                # 记录未匹配人员（本地路径不存在）
+                                unmatched_people.append({
+                                    'dorm': dorm,
+                                    'bed': bed,
+                                    'name': name,
+                                    'reason': '本地图片文件不存在',
+                                    'photo_url': photo_url
+                                })
                         
                     except Exception as e:
                         print(f"❌ 图片加载失败: {photo_url}, 错误: {e}")
                 else:
-                    print(f"⚠️  跳过空的照片URL")
+                    # 无照片URL，尝试在用户提供的目录中匹配
+                    matched_path = find_photo_in_dir(photo_dir, dorm, bed, name)
+                    if matched_path and os.path.exists(matched_path):
+                        try:
+                            photo = Image.open(matched_path).convert("RGBA")
+                            print(f"✅ 目录匹配到图片: {matched_path}")
+                            photo = photo.resize((adjusted_photo_width, adjusted_photo_height), Image.Resampling.LANCZOS)
+                            photo_x_pos, photo_y_pos = adjusted_photo_pos
+                            img.paste(photo, (photo_x_pos, photo_y_pos), photo if photo.mode == "RGBA" else None)
+                        except Exception as e:
+                            print(f"❌ 目录图片加载失败: {matched_path}, 错误: {e}")
+                    else:
+                        print(f"⚠️ 无照片URL且目录中未匹配到：寝室{dorm}-床位{bed}-{name}")
+                        # 记录未匹配人员（无URL且目录未匹配）
+                        unmatched_people.append({
+                            'dorm': dorm,
+                            'bed': bed,
+                            'name': name,
+                            'reason': '无照片URL且目录中未匹配到'
+                        })
             
             # 保存卡片
             card_number = card_idx + 1
@@ -444,7 +653,8 @@ def process_images(excel_path, background_path, session_folder, session_id, room
             'students_per_card': room_type,  # 保持原有的寝室类型信息
             'student_info': student_info,
             'dorm_info': dorm_info,  # 添加寝室信息
-            'college_name': college_name  # 添加学院信息用于ZIP命名
+            'college_name': college_name,  # 添加学院信息用于ZIP命名
+            'unmatched_people': unmatched_people  # 返回未匹配人员列表
         }
         
     except Exception as e:

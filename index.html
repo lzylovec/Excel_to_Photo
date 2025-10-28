@@ -6,14 +6,136 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>哈尔滨信息工程学院寝室卡生成器</title>
     <link rel="stylesheet" href="style.css">
+    <style>
+        .preselect-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.35);
+            backdrop-filter: blur(2px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999
+        }
+
+        .preselect-card {
+            background: var(--surface);
+            width: 520px;
+            max-width: 90vw;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(30, 58, 138, 0.18);
+            padding: 24px;
+            border: 1px solid rgba(30, 58, 138, 0.12);
+        }
+
+        .preselect-title {
+            font-size: 20px;
+            margin: 8px 0 12px;
+            text-align: center;
+            color: var(--text-primary);
+        }
+
+        .preselect-room-types {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+            margin-bottom: 16px
+        }
+
+        .preselect-genders {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-bottom: 16px
+        }
+
+        .preselect-room,
+        .preselect-gender {
+            padding: 10px 14px;
+            border: 1px solid rgba(30, 58, 138, 0.15);
+            border-radius: 8px;
+            background: var(--surface-muted);
+            cursor: pointer;
+            font-size: 16px;
+            transition: all .2s
+        }
+
+        .preselect-room:hover:not([disabled]),
+        .preselect-gender:hover:not([disabled]) {
+            background: #eef2ff
+        }
+
+        .preselect-room.active,
+        .preselect-gender.active {
+            background: linear-gradient(135deg, var(--primary-700), var(--primary));
+            color: #fff;
+            border-color: transparent;
+            box-shadow: 0 4px 12px rgba(30, 58, 138, 0.3);
+        }
+
+        .preselect-actions {
+            text-align: center
+        }
+
+        #enterSystemBtn {
+            padding: 10px 16px;
+            border: none;
+            border-radius: 8px;
+            background: linear-gradient(135deg, var(--primary-700), var(--primary));
+            color: #fff;
+            font-size: 16px;
+            cursor: pointer
+        }
+
+        #enterSystemBtn:disabled {
+            opacity: .6;
+            cursor: not-allowed
+        }
+
+        .template-download {
+            margin-top: 10px
+        }
+
+        .download-template-btn {
+            display: inline-block;
+            padding: 8px 12px;
+            border-radius: 8px;
+            background: #28a745;
+            color: #fff;
+            text-decoration: none;
+            font-size: 14px
+        }
+
+        .download-template-btn:hover {
+            background: #218838
+        }
+    </style>
 </head>
 
 <body>
+    <div id="preselectOverlay" class="preselect-overlay">
+        <div class="preselect-card">
+            <h2 class="preselect-title">请选择寝室类型</h2>
+            <div class="preselect-room-types">
+                <button class="preselect-room" data-room="2">双人寝</button>
+                <button class="preselect-room" data-room="3">三人寝</button>
+                <button class="preselect-room" data-room="4">四人寝</button>
+                <button class="preselect-room" data-room="5">五人寝</button>
+            </div>
+            <h2 class="preselect-title">请选择性别</h2>
+            <div class="preselect-genders">
+                <button class="preselect-gender" data-gender="male" disabled>男寝</button>
+                <button class="preselect-gender" data-gender="female" disabled>女寝</button>
+            </div>
+            <div class="preselect-actions">
+                <button id="enterSystemBtn" disabled>进入生成界面</button>
+            </div>
+        </div>
+    </div>
     <div class="container">
         <!-- Logo 品牌区域 -->
         <div class="brand-section">
-            <img src="校logo-CMYK.png" alt="哈尔滨信息工程学院" class="brand-logo">
-            <h1 class="brand-title">哈尔滨信息工程学院</h1>
+            <img src="WechatIMG738.jpg" alt="哈尔滨信息工程学院标识" class="brand-logo">
             <h2 class="system-title">寝室卡生成器</h2>
         </div>
 
@@ -70,6 +192,26 @@
                 </div>
             </div>
 
+            <!-- 可选：本地图片目录，用于当Excel无图片URL时按文件名匹配 -->
+            <div class="upload-section" style="margin-top: 16px;">
+                <div class="upload-area" id="photoDirArea" style="cursor: default;">
+                    <div class="upload-content">
+                        <svg class="upload-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path d="M3 7h18v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z"></path>
+                            <path d="M3 7l5-4h8l5 4"></path>
+                        </svg>
+                        <h3>图片目录路径（可选）</h3>
+                        <p>当Excel没有“图片URL”时，按目录中文件名自动匹配照片</p>
+                        <div style="margin-top: 8px; width: 100%; max-width: 520px;">
+                            <input type="text" id="photoDirInput" placeholder="例如：/Users/username/Desktop/photos"
+                                style="width: 100%; padding: 10px; border: 1px dashed #cbd5e1; border-radius: 8px;">
+                        </div>
+                        <p style="margin-top: 6px; font-size: 13px; color: #64748b;">命名示例：<code>1J218-1刘镇瑜.jpg</code>（支持
+                            .jpg / .jpeg / .png）</p>
+                    </div>
+                </div>
+            </div>
+
             <div class="info-section">
                 <h3>📋 Excel文件格式要求</h3>
                 <p>Excel文件需要包含以下列（顺序不限）：</p>
@@ -106,6 +248,9 @@
                         <li><code>data.xlsx</code> - 使用网络图片链接</li>
                         <li><code>data_local_photos.xlsx</code> - 使用本地图片路径</li>
                     </ul>
+                </div>
+                <div class="template-download">
+                    <a href="/download-template" class="download-template-btn" download="模板表.xlsx">下载模板表（Excel）</a>
                 </div>
             </div>
 
@@ -790,6 +935,11 @@
             <div class="result-section" id="resultSection" style="display: none;">
                 <h3>生成结果</h3>
                 <div class="result-info" id="resultInfo"></div>
+                <!-- 未匹配人员列表 -->
+                <div class="unmatched-section" id="unmatchedSection" style="display: none;">
+                    <h4 class="unmatched-title">未匹配到照片的人员（共 <span id="unmatchedCount">0</span> 人）</h4>
+                    <ul id="unmatchedList" class="unmatched-list"></ul>
+                </div>
                 <div class="pagination-controls" id="paginationControls" style="display: none;">
                     <button id="prevBtn" class="nav-btn" disabled>← 上一页</button>
                     <div class="page-selector">
@@ -816,6 +966,43 @@
     </div>
 
     <script src="script.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            var overlay = document.getElementById('preselectOverlay');
+            if (!overlay) { return }
+            var selectedRoom = null; var selectedGender = null;
+            var roomBtns = overlay.querySelectorAll('.preselect-room');
+            var genderBtns = overlay.querySelectorAll('.preselect-gender');
+            var enterBtn = document.getElementById('enterSystemBtn');
+            function updateEnter() { enterBtn.disabled = !(selectedRoom && selectedGender) }
+            roomBtns.forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    selectedRoom = btn.dataset.room;
+                    roomBtns.forEach(function (b) { b.classList.toggle('active', b === btn) });
+                    genderBtns.forEach(function (g) { g.disabled = false });
+                    updateEnter();
+                })
+            });
+            genderBtns.forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    selectedGender = btn.dataset.gender;
+                    genderBtns.forEach(function (b) { b.classList.toggle('active', b === btn) });
+                    updateEnter();
+                })
+            });
+            enterBtn.addEventListener('click', function () {
+                if (!(selectedRoom && selectedGender)) { return }
+                try {
+                    window.currentRoomType = parseInt(selectedRoom, 10);
+                    window.currentGender = selectedGender;
+                    if (typeof switchRoomType === 'function') { switchRoomType(window.currentRoomType) }
+                    if (typeof switchGender === 'function') { switchGender(window.currentGender) }
+                } catch (e) { console.error(e) }
+                overlay.style.display = 'none';
+                window.scrollTo(0, 0);
+            });
+        });
+    </script>
 </body>
 
 </html>

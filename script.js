@@ -8,96 +8,112 @@ let roomTypeData = {
         male: {
             excelFile: null,
             imageFile: null,
+            autoTemplateUrl: null,
             currentImages: [],
             currentPage: 0,
             totalStudents: 0,
             studentsPerCard: 0,
             hasResults: false,
             dormInfo: null,
-            collegeName: null
+            collegeName: null,
+            unmatchedPeople: []
         },
         female: {
             excelFile: null,
             imageFile: null,
+            autoTemplateUrl: null,
             currentImages: [],
             currentPage: 0,
             totalStudents: 0,
             studentsPerCard: 0,
             hasResults: false,
             dormInfo: null,
-            collegeName: null
+            collegeName: null,
+            unmatchedPeople: []
         }
     },
     3: {
         male: {
             excelFile: null,
             imageFile: null,
+            autoTemplateUrl: null,
             currentImages: [],
             currentPage: 0,
             totalStudents: 0,
             studentsPerCard: 0,
             hasResults: false,
             dormInfo: null,
-            collegeName: null
+            collegeName: null,
+            unmatchedPeople: []
         },
         female: {
             excelFile: null,
             imageFile: null,
+            autoTemplateUrl: null,
             currentImages: [],
             currentPage: 0,
             totalStudents: 0,
             studentsPerCard: 0,
             hasResults: false,
             dormInfo: null,
-            collegeName: null
+            collegeName: null,
+            unmatchedPeople: []
         }
     },
     4: {
         male: {
             excelFile: null,
             imageFile: null,
+            autoTemplateUrl: null,
             currentImages: [],
             currentPage: 0,
             totalStudents: 0,
             studentsPerCard: 0,
             hasResults: false,
             dormInfo: null,
-            collegeName: null
+            collegeName: null,
+            unmatchedPeople: []
         },
         female: {
             excelFile: null,
             imageFile: null,
+            autoTemplateUrl: null,
             currentImages: [],
             currentPage: 0,
             totalStudents: 0,
             studentsPerCard: 0,
             hasResults: false,
             dormInfo: null,
-            collegeName: null
+            collegeName: null,
+            unmatchedPeople: []
         }
     },
     5: {
         male: {
             excelFile: null,
             imageFile: null,
+            autoTemplateUrl: null,
             currentImages: [],
             currentPage: 0,
             totalStudents: 0,
             studentsPerCard: 0,
             hasResults: false,
             dormInfo: null,
-            collegeName: null
+            collegeName: null,
+            unmatchedPeople: []
         },
         female: {
             excelFile: null,
             imageFile: null,
+            autoTemplateUrl: null,
             currentImages: [],
             currentPage: 0,
             totalStudents: 0,
             studentsPerCard: 0,
             hasResults: false,
             dormInfo: null,
-            collegeName: null
+            collegeName: null,
+            unmatchedPeople: []
         }
     }
 };
@@ -143,6 +159,13 @@ const pageSelect = document.getElementById('pageSelect');
 const totalPages = document.getElementById('totalPages');
 const currentCard = document.getElementById('currentCard');
 const downloadBtn = document.getElementById('downloadBtn');
+// 未匹配人员列表元素
+const unmatchedSection = document.getElementById('unmatchedSection');
+const unmatchedList = document.getElementById('unmatchedList');
+const unmatchedCount = document.getElementById('unmatchedCount');
+// 可选图片目录输入
+const photoDirInput = document.getElementById('photoDirInput');
+let photoDir = '';
 
 // 位置配置区域
 const positionConfigSection = document.getElementById('positionConfigSection');
@@ -163,6 +186,17 @@ function getCurrentData() {
     return roomTypeData[currentRoomType][currentGender];
 }
 
+function getTemplateUrl(gender, roomType) {
+    return `/template-image?gender=${gender}&room_type=${roomType}`;
+}
+
+function getTemplateNameText(gender, roomType) {
+    const genderText = gender === 'male' ? '男寝' : '女寝';
+    const roomMap = {2: '双人寝', 3: '三人寝', 4: '四人寝', 5: '五人寝'};
+    const roomText = roomMap[roomType] || '四人寝';
+    return `寝室卡-${genderText}-${roomText}.jpg`;
+}
+
 // 初始化事件监听器
 document.addEventListener('DOMContentLoaded', function () {
     initializeUploadAreas();
@@ -176,6 +210,12 @@ document.addEventListener('DOMContentLoaded', function () {
     switchGender('male');
     // 初始化默认位置参数
     initializeDefaultPositions();
+    // 初始化图片目录输入监听
+    if (photoDirInput) {
+        photoDirInput.addEventListener('input', function (e) {
+            photoDir = (e.target.value || '').trim();
+        });
+    }
 });
 
 // 初始化上传区域
@@ -245,6 +285,8 @@ function handleImageFile(file) {
     }
     
     getCurrentData().imageFile = file;
+    // 当用户手动上传图片时，取消自动模板
+    getCurrentData().autoTemplateUrl = null;
     imageInfo.textContent = `已选择: ${file.name} (${formatFileSize(file.size)})`;
     imageUpload.classList.add('file-selected');
     
@@ -279,7 +321,8 @@ function formatFileSize(bytes) {
 // 检查文件是否准备就绪
 function checkFilesReady() {
     const currentData = getCurrentData();
-    if (currentData.excelFile && currentData.imageFile) {
+    // Excel 必须；背景图片可选（若未上传则按选择自动使用模板）
+    if (currentData.excelFile && (currentData.imageFile || currentData.autoTemplateUrl)) {
         generateBtn.disabled = false;
         generateBtn.classList.add('ready');
     } else {
@@ -335,8 +378,8 @@ function initializePagination() {
 // 生成信息卡
 async function generateCards() {
     const currentData = getCurrentData();
-    if (!currentData.excelFile || !currentData.imageFile) {
-        showError('请先上传Excel文件和背景图片');
+    if (!currentData.excelFile) {
+        showError('请先上传Excel文件');
         return;
     }
 
@@ -346,8 +389,19 @@ async function generateCards() {
     try {
         const formData = new FormData();
         formData.append('excel_file', currentData.excelFile);
-        formData.append('image_file', currentData.imageFile);
+        if (currentData.imageFile) {
+            formData.append('image_file', currentData.imageFile);
+        }
         formData.append('room_type', currentRoomType); // 添加寝室类型参数
+        formData.append('gender', currentGender); // 添加性别参数
+        if (!currentData.imageFile) {
+            // 无背景上传时告知后端使用模板
+            formData.append('use_template', 'true');
+        }
+        // 可选：图片目录路径（用于当Excel无图片URL时按命名匹配）
+        if (photoDir && photoDir.trim()) {
+            formData.append('photo_dir', photoDir.trim());
+        }
         
         // 添加当前寝室类型的位置调整参数
         if (positionAdjustments[currentRoomType]) {
@@ -375,6 +429,7 @@ async function generateCards() {
             currentData.studentsPerCard = result.students_per_card;
             currentData.dormInfo = result.dorm_info; // 保存寝室信息
             currentData.collegeName = result.college_name; // 保存学院信息
+            currentData.unmatchedPeople = result.unmatched_people || [];
             currentData.hasResults = true;
             
             // 如果之前有结果且当前页面在有效范围内，保持当前页面；否则重置为第一页
@@ -430,6 +485,8 @@ function displayResults(images, totalStudents, studentsPerCard) {
             <span class="student-info">共 ${totalStudents} 名学生，每张卡片 ${studentsPerCard} 人</span>
         </div>
     `;
+    // 渲染未匹配人员列表
+    displayUnmatchedPeople();
     
     // 显示翻页控件（如果有多张卡片）
     if (images.length > 1) {
@@ -448,6 +505,70 @@ function displayResults(images, totalStudents, studentsPerCard) {
     // 显示结果区域
     resultSection.style.display = 'block';
     resultSection.scrollIntoView({ behavior: 'smooth' });
+}
+
+// 显示未匹配人员列表
+function displayUnmatchedPeople() {
+    if (!unmatchedSection || !unmatchedList || !unmatchedCount) return;
+    const currentData = getCurrentData();
+    const list = currentData.unmatchedPeople || [];
+    if (list.length === 0) {
+        unmatchedSection.style.display = 'none';
+        return;
+    }
+    unmatchedSection.style.display = 'block';
+    unmatchedCount.textContent = String(list.length);
+    unmatchedList.innerHTML = '';
+    // 辅助：按寝室号找到对应的页面索引
+    const normalizeDorm = (s) => (String(s || '')
+        .trim()
+        .toUpperCase()
+        .replace(/\s+/g, '')
+        .replace(/[／/_.\-]/g, ''));
+
+    const findPageIndexByDorm = (dorm) => {
+        const info = currentData.dormInfo || [];
+        if (!info || info.length === 0) return -1;
+        const target = normalizeDorm(dorm);
+        for (let i = 0; i < info.length; i++) {
+            const cand = normalizeDorm(info[i].dorm_number);
+            if (cand === target) return i;
+        }
+        return -1;
+    };
+
+    list.forEach(item => {
+        const li = document.createElement('li');
+        li.className = 'unmatched-item';
+
+        const textSpan = document.createElement('span');
+        textSpan.className = 'unmatched-text';
+        const text = item.desc ? item.desc : `寝室${item.dorm || ''}-床位${item.bed || ''}-${item.name || ''}`;
+        textSpan.textContent = text;
+
+        const jumpBtn = document.createElement('button');
+        const pageIndex = findPageIndexByDorm(item.dorm);
+        if (pageIndex >= 0) {
+            jumpBtn.className = 'jump-btn';
+            jumpBtn.textContent = `跳转到第 ${pageIndex + 1} 页`;
+            jumpBtn.addEventListener('click', () => {
+                const data = getCurrentData();
+                data.currentPage = pageIndex;
+                displayCurrentCard();
+                updatePaginationControls();
+                currentCard.scrollIntoView({ behavior: 'smooth' });
+            });
+        } else {
+            jumpBtn.className = 'jump-btn';
+            jumpBtn.textContent = '无法定位';
+            jumpBtn.disabled = true;
+            jumpBtn.title = '未找到该寝室对应的卡片页';
+        }
+
+        li.appendChild(textSpan);
+        li.appendChild(jumpBtn);
+        unmatchedList.appendChild(li);
+    });
 }
 
 // 填充页面选择器选项
@@ -675,7 +796,8 @@ function switchGender(gender) {
         }
     });
     
-    // 更新文件上传状态显示
+    // 更新模板预览与文件上传状态显示
+    updateAutoTemplatePreview();
     updateFileUploadStatus();
     
     // 更新结果显示区域
@@ -710,7 +832,8 @@ function switchRoomType(roomType) {
     // 重新初始化当前寝室类型的位置调整
     initializeCurrentRoomTypeAdjustments();
     
-    // 更新文件上传状态显示
+    // 更新模板预览与文件上传状态显示
+    updateAutoTemplatePreview();
     updateFileUploadStatus();
     
     // 更新结果显示区域
@@ -757,6 +880,25 @@ function removeAllEventListeners() {
             });
         }
     });
+}
+
+// 根据当前选择更新自动模板预览（当未上传图片时）
+function updateAutoTemplatePreview() {
+    const currentData = getCurrentData();
+    // 若未上传图片，则设置自动模板URL
+    if (!currentData.imageFile) {
+        currentData.autoTemplateUrl = getTemplateUrl(currentGender, currentRoomType);
+        const nameText = getTemplateNameText(currentGender, currentRoomType);
+        imageInfo.innerHTML = `
+            <div class="file-info">
+                <span class="file-name">自动使用模板：${nameText}</span>
+            </div>
+            <div class="template-preview" style="margin-top:8px">
+                <img src="${currentData.autoTemplateUrl}" alt="模板预览" style="max-width:100%;border-radius:8px;box-shadow:0 2px 6px rgba(0,0,0,0.1)">
+            </div>
+        `;
+        imageUpload.classList.add('has-file');
+    }
 }
 
 // 为当前寝室类型添加事件监听器
@@ -962,7 +1104,7 @@ function updateFileUploadStatus() {
         excelUpload.classList.remove('has-file');
     }
     
-    // 更新图片文件状态
+    // 更新图片文件状态（若无上传则显示自动模板）
     if (currentData.imageFile) {
         imageInfo.innerHTML = `
             <div class="file-info">
@@ -972,8 +1114,19 @@ function updateFileUploadStatus() {
         `;
         imageUpload.classList.add('has-file');
     } else {
-        imageInfo.innerHTML = '<span class="upload-text">点击或拖拽上传背景图片</span>';
-        imageUpload.classList.remove('has-file');
+        // 显示当前选择的自动模板预览
+        currentData.autoTemplateUrl = getTemplateUrl(currentGender, currentRoomType);
+        const nameText = getTemplateNameText(currentGender, currentRoomType);
+        imageInfo.innerHTML = `
+            <div class="file-info">
+                <span class="file-name">自动使用模板：${nameText}</span>
+            </div>
+            <div class="template-preview" style="margin-top:8px">
+                <img src="${currentData.autoTemplateUrl}" alt="模板预览" style="max-width:100%;border-radius:8px;box-shadow:0 2px 6px rgba(0,0,0,0.1)">
+            </div>
+            <div class="upload-hint" style="margin-top:6px;color:#666;font-size:12px">如需自定义，上传背景图片以覆盖模板</div>
+        `;
+        imageUpload.classList.add('has-file');
     }
     
     // 更新生成按钮状态
