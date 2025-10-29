@@ -20,6 +20,13 @@
 
     --success-500: #28a745;
     --danger-500: #dc3545;
+
+    /* 玻璃态通用变量 */
+    --glass-bg: rgba(255, 255, 255, 0.16);
+    --glass-bg-strong: rgba(255, 255, 255, 0.22);
+    --glass-border: rgba(255, 255, 255, 0.28);
+    --glass-shadow: 0 20px 40px rgba(30, 58, 138, 0.22);
+    --glass-blur: 12px;
 }
 
 body {
@@ -155,13 +162,14 @@ header p {
 
 /* 主要内容区域 */
 main {
-    background: linear-gradient(135deg, rgba(255, 255, 255, 0.96) 0%, rgba(248, 250, 252, 0.96) 100%);
+    background: linear-gradient(180deg, var(--glass-bg) 0%, rgba(255, 255, 255, 0.1) 100%);
     border-radius: 20px;
     padding: 40px;
-    box-shadow: 0 20px 40px rgba(30, 58, 138, 0.15);
+    box-shadow: var(--glass-shadow);
     margin-bottom: 20px;
-    backdrop-filter: blur(10px);
-    border: 1px solid rgba(30, 58, 138, 0.12);
+    backdrop-filter: blur(var(--glass-blur)) saturate(1.2);
+    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(1.2);
+    border: 1px solid var(--glass-border);
 }
 
 /* 位置调整区域容器 */
@@ -889,6 +897,33 @@ button[id*="resetAllBtn"]:hover {
     overflow: hidden;
 }
 
+/* 玻璃态通用类 */
+.glass-card {
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    border-radius: 16px;
+    backdrop-filter: blur(var(--glass-blur)) saturate(1.2);
+    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(1.2);
+    box-shadow: var(--glass-shadow);
+}
+
+.glass-panel {
+    background: linear-gradient(180deg, var(--glass-bg) 0%, rgba(255,255,255,0.1) 100%);
+    border: 1px solid var(--glass-border);
+    border-radius: 12px;
+    backdrop-filter: blur(var(--glass-blur));
+    -webkit-backdrop-filter: blur(var(--glass-blur));
+    box-shadow: var(--glass-shadow);
+}
+
+.glass-input {
+    background: rgba(255,255,255,0.6);
+    border: 1px solid var(--glass-border);
+    border-radius: 8px;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+}
+
 /* 品牌区域与导航栏的柔和衔接：底部渐隐 */
 .brand-section::after {
     content: "";
@@ -929,3 +964,6 @@ button[id*="resetAllBtn"]:hover {
     margin: -8px 0 0 0; /* 上移一点 */
     font-weight: 500;
 }
+
+/* 覆盖未匹配项为玻璃态 */
+/* (取消玻璃态覆盖，保持原未匹配项样式) */

@@ -18,7 +18,7 @@ UPLOAD_FOLDER = 'uploads'
 OUTPUT_FOLDER = 'static/output'
 ALLOWED_EXCEL_EXTENSIONS = {'xlsx', 'xls'}
 ALLOWED_IMAGE_EXTENSIONS = {'png', 'jpg', 'jpeg'}
-TEMPLATE_PHOTO_DIR = '/Users/liuzhenyu_macbookpro/Desktop/商学院/model_photo'
+TEMPLATE_PHOTO_DIR = '/Users/liuzhenyu_macbookpro/Desktop/excel/model_photo'
 
 # 创建必要的目录
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
@@ -727,4 +727,4 @@ def server_error(e):
 if __name__ == '__main__':
     print("启动学生信息卡生成器服务...")
     print("访问地址: http://localhost:5002")
-    app.run(debug=True, host='0.0.0.0', port=5002)
+    app.run(debug=True, host='0.0.0.0', port=5001)
