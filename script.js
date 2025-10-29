@@ -441,6 +441,19 @@ async function generateCards() {
             
             displayResults(result.images, result.total_students, result.students_per_card);
             showSuccess(`成功生成 ${result.images.length} 张信息卡，共 ${result.total_students} 名学生`);
+
+            // 从第一张图片路径提取并保存会话ID，供关闭页面时清理
+            try {
+                const firstImagePath = Array.isArray(result.images) ? result.images[0] : null;
+                const match = firstImagePath && firstImagePath.match(/\/static\/output\/([^\/]+)\//);
+                if (match && match[1]) {
+                    window.__currentSessionId = match[1];
+                    // 调试输出：当前会话ID
+                    console.log('当前会话ID:', window.__currentSessionId);
+                }
+            } catch (e) {
+                console.warn('提取会话ID失败:', e);
+            }
         } else {
             throw new Error(result.error || '生成失败');
         }
@@ -451,6 +464,40 @@ async function generateCards() {
         setLoadingState(false);
     }
 }
+
+// 在页面关闭/隐藏时清理会话缓存
+(function setupUnloadCleanup(){
+    function cleanup() {
+        const sessionId = window.__currentSessionId;
+        if (!sessionId) return;
+
+        const payload = JSON.stringify({ session_id: sessionId });
+        try {
+            if (navigator.sendBeacon) {
+                const blob = new Blob([payload], { type: 'application/json' });
+                navigator.sendBeacon('/cleanup-session', blob);
+            } else {
+                // 作为回退方案，使用 keepalive fetch
+                fetch('/cleanup-session', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: payload,
+                    keepalive: true
+                }).catch(() => {});
+            }
+        } catch (_) {
+            // 忽略清理中的异常以避免阻塞关闭事件
+        }
+    }
+
+    // pagehide 在现代浏览器中更可靠；同时注册 beforeunload 作为补充
+    window.addEventListener('pagehide', cleanup);
+    window.addEventListener('beforeunload', cleanup);
+    // 兼容部分环境：标签页转为隐藏时也尝试清理
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'hidden') cleanup();
+    });
+})();
 
 // 设置加载状态
 function setLoadingState(loading) {

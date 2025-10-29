@@ -10,6 +10,7 @@ import traceback
 from datetime import datetime
 import zipfile
 import re
+import shutil
 
 app = Flask(__name__)
 
@@ -688,20 +689,20 @@ def download_zip(session_id):
         # 获取前端传递的文件名参数，如果没有则使用默认名称
         custom_filename = request.args.get('filename', f"学生信息卡合集_{datetime.now().strftime('%Y%m%d_%H%M%S')}")
         
-        # 创建ZIP文件
-        zip_filename = f"{custom_filename}.zip"
-        zip_path = os.path.join(session_folder, zip_filename)
-        
-        with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
+        # 在内存中创建 ZIP，避免磁盘残留
+        zip_bytes = BytesIO()
+        with zipfile.ZipFile(zip_bytes, 'w', zipfile.ZIP_DEFLATED) as zipf:
             for image_file in image_files:
                 image_path = os.path.join(session_folder, image_file)
-                # 在ZIP中使用更友好的文件名
                 arcname = f"学生信息卡_{image_file}"
                 zipf.write(image_path, arcname)
-        
-        # 发送ZIP文件
+        zip_bytes.seek(0)
+
+        # 不在此处删除会话目录，改为在页面关闭时由前端调用清理接口
+
+        # 直接发送内存中的 ZIP 文件
         return send_file(
-            zip_path,
+            zip_bytes,
             as_attachment=True,
             download_name=f"{custom_filename}.zip",
             mimetype='application/zip'
@@ -711,6 +712,33 @@ def download_zip(session_id):
         print(f"Error in download_zip: {e}")
         traceback.print_exc()
         return jsonify({'success': False, 'error': f'ZIP文件生成错误: {str(e)}'})
+
+@app.route('/cleanup-session', methods=['POST'])
+def cleanup_session():
+    """根据前端提供的 session_id 清理该会话的输出缓存"""
+    try:
+        session_id = None
+        if request.is_json:
+            data = request.get_json(silent=True) or {}
+            session_id = data.get('session_id')
+        # 兼容 form 或 query 传参
+        if not session_id:
+            session_id = request.form.get('session_id') or request.args.get('session_id')
+        if not session_id:
+            return jsonify({'success': False, 'error': '缺少 session_id'}), 400
+
+        session_folder = os.path.join(OUTPUT_FOLDER, session_id)
+        if os.path.exists(session_folder):
+            shutil.rmtree(session_folder)
+            print(f"✅ 清理完成: {session_folder}")
+            return jsonify({'success': True})
+        else:
+            # 已被清理或不存在
+            return jsonify({'success': True, 'message': '目录不存在或已清理'})
+    except Exception as e:
+        print(f"Error in cleanup_session: {e}")
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': f'清理失败: {str(e)}'}), 500
 
 @app.errorhandler(413)
 def too_large(e):
